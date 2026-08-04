@@ -7,14 +7,20 @@ jobs:
   build:
     runs-on: windows-2022
     steps:
-      - name: 安装 VS2019 (v142) 工具集
+      - name: 安装 v142 (VS2019) 工具集
         shell: cmd
         run: |
-          curl -L -o vs16_buildtools.exe https://aka.ms/vs/16/release/vs_buildtools.exe
-          vs16_buildtools.exe --quiet --wait --norestart --nocache ^
-            --add Microsoft.VisualStudio.Workload.VCTools ^
+          curl -L -o vs_buildtools.exe https://aka.ms/vs/17/release/vs_buildtools.exe
+          vs_buildtools.exe --quiet --wait --norestart --nocache ^
             --add Microsoft.VisualStudio.Component.VC.v142.x86.x64
-        # 约 3-5 分钟。装好后 cl.exe 为 19.29 (v142)，与目标设备 VS2019 完全同代
+        # 用 VS2022(17.x) 通道安装器补装 v142 工具集（cl.exe 19.29），约 2-4 分钟。
+        # 注意：16.x 通道的旧安装器已不可靠（曾出现装完但实例不可用），故改用 17.x 通道。
+
+      - name: 校验 v142 工具集已安装
+        shell: bash
+        run: |
+          "/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" -all -products '*' -requires Microsoft.VisualStudio.Component.VC.v142.x86.x64 -property installationPath
+          ls "/c/Program Files/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/" 2>/dev/null
 
       - name: 拉取 OpenCV 4.5.5 源码
         uses: actions/checkout@v4
@@ -39,7 +45,7 @@ jobs:
         shell: cmd
         run: |
           cmake -S opencv -B build ^
-            -G "Visual Studio 16 2019" -A x64 ^
+            -G "Visual Studio 17 2022" -A x64 -T v142 ^
             -DCMAKE_CONFIGURATION_TYPES=Release ^
             -DBUILD_SHARED_LIBS=OFF ^
             -DBUILD_opencv_world=ON ^
