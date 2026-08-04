@@ -74,8 +74,10 @@ jobs:
         run: |
           echo "== 模块数量 =="
           grep -c HAVE_OPENCV install/include/opencv2/opencv_modules.hpp
-          echo "== lib 目录 =="
-          ls -la install/lib
+          echo "== 安装目录 =="
+          find install -maxdepth 3 -type d | sort
+          echo "== static libs =="
+          find install -path '*/lib/*.lib' -type f | sort
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
@@ -83,4 +85,4 @@ jobs:
           name: opencv455-static-vs2019
           path: |
             install/include
-            install/lib
+            install/x64/vc16/lib
