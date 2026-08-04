@@ -1,0 +1,73 @@
+name: build-opencv455-static-vs2019
+
+on:
+  workflow_dispatch:   # Actions 页面 → Run workflow 手动触发
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: 安装 VS2019 (v142) 工具集
+        shell: cmd
+        run: |
+          curl -L -o vs16_buildtools.exe https://aka.ms/vs/16/release/vs_buildtools.exe
+          vs16_buildtools.exe --quiet --wait --norestart --nocache ^
+            --add Microsoft.VisualStudio.Workload.VCTools ^
+            --add Microsoft.VisualStudio.Component.VC.v142.x86.x64
+        # 约 3-5 分钟。装好后 cl.exe 为 19.29 (v142)，与目标设备 VS2019 完全同代
+
+      - name: 拉取 OpenCV 4.5.5 源码
+        uses: actions/checkout@v4
+        with:
+          repository: opencv/opencv
+          ref: 4.5.5
+          path: opencv
+
+      - name: 拉取 opencv_contrib 4.5.5（现有构建含全部 contrib 模块）
+        uses: actions/checkout@v4
+        with:
+          repository: opencv/opencv_contrib
+          ref: 4.5.5
+          path: opencv_contrib
+
+      - name: 固定 CMake 3.30（OpenCV 4.5.5 的脚本与 CMake 4.x 不兼容）
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.30.x'
+
+      - name: Configure
+        shell: cmd
+        run: |
+          cmake -S opencv -B build ^
+            -G "Visual Studio 16 2019" -A x64 ^
+            -DCMAKE_CONFIGURATION_TYPES=Release ^
+            -DBUILD_SHARED_LIBS=OFF ^
+            -DBUILD_opencv_world=ON ^
+            -DOPENCV_EXTRA_MODULES_PATH=opencv_contrib/modules ^
+            -DOPENCV_ENABLE_NONFREE=ON ^
+            -DBUILD_opencv_barcode=ON ^
+            -DWITH_FFMPEG=OFF ^
+            -DBUILD_TESTS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_EXAMPLES=OFF ^
+            -DBUILD_opencv_python3=OFF -DBUILD_opencv_python2=OFF -DBUILD_JAVA=OFF
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Install（产出干净的 include / lib）
+        run: cmake --install build --config Release --prefix install
+
+      - name: 校验产物
+        shell: bash
+        run: |
+          echo "== 模块数量 =="
+          grep -c HAVE_OPENCV install/include/opencv2/opencv_modules.hpp
+          echo "== lib 目录 =="
+          ls -la install/lib
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencv455-static-vs2019
+          path: |
+            install/include
+            install/lib
