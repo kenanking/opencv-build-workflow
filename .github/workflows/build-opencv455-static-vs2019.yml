@@ -7,27 +7,27 @@ jobs:
   build:
     runs-on: windows-2022
     steps:
-      - name: 安装 v142 (VS2019) 工具集
-        shell: cmd
+      - name: 安装完整 VS 2019 Build Tools（含 C++ 工作负载）
+        shell: powershell
         run: |
-          curl -L -o vs_buildtools.exe https://aka.ms/vs/17/release/vs_buildtools.exe
-          vs_buildtools.exe --quiet --wait --norestart --nocache ^
-            --add Microsoft.VisualStudio.Component.VC.v142.x86.x64
-          exit /b 0
-        # 用 VS2022(17.x) 通道安装器补装 v142 工具集（cl.exe 19.29），约 2-4 分钟。
-        # windows-2022 runner 预装了 VS2022，v142 工具集通常已包含；此步骤确保组件存在。
+          # 通过 Chocolatey 安装 VS 2019 Build Tools，含 VC++ 工具链和推荐组件
+          # 安装后位于 C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools
+          choco install visualstudio2019buildtools `
+            --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --passive --norestart" `
+            --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: 校验 v142 工具集已安装
-        shell: bash
+      - name: 校验 VS 2019 Build Tools 已安装
+        shell: powershell
         run: |
-          "/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" \
-            -all -products '*' -requires Microsoft.VisualStudio.Component.VC.v142.x86.x64 \
-            -property installationPath || true
-          ls "/c/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/" \
-            "/c/Program Files/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/" \
-            2>/dev/null || true
-          # Confirm at least one MSVC toolset directory exists
-          ls "/c/Program Files/Microsoft Visual Studio/2022/"
+          $vcvars = "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+          if (-not (Test-Path $vcvars)) {
+            Write-Error "vcvars64.bat not found: $vcvars"
+            exit 1
+          }
+          Write-Host "Found: $vcvars"
+          & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
+            -products '*' -version '[16.0,17.0)' -property installationPath
 
       - name: 拉取 OpenCV 4.5.5 源码
         uses: actions/checkout@v4
@@ -51,8 +51,9 @@ jobs:
       - name: Configure
         shell: cmd
         run: |
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
           cmake -S opencv -B build ^
-            -G "Visual Studio 17 2022" -A x64 -T v142 ^
+            -G "Visual Studio 16 2019" -A x64 ^
             -DCMAKE_CONFIGURATION_TYPES=Release ^
             -DBUILD_SHARED_LIBS=OFF ^
             -DBUILD_opencv_world=ON ^
@@ -64,7 +65,10 @@ jobs:
             -DBUILD_opencv_python3=OFF -DBUILD_opencv_python2=OFF -DBUILD_JAVA=OFF
 
       - name: Build
-        run: cmake --build build --config Release
+        shell: cmd
+        run: |
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+          cmake --build build --config Release
 
       - name: Install（产出干净的 include / lib）
         run: cmake --install build --config Release --prefix install
