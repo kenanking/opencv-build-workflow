@@ -85,4 +85,4 @@ jobs:
           name: opencv455-static-vs2019
           path: |
             install/include
-            install/x64/vc16/lib
+            install/lib   # cmake --install 是平铺布局；勿改成 x64/vc16（那是官方发行包的目录风格）
