@@ -87,5 +87,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: opencv455-static-vs2019
-          path: |
-            install/**   # 上传整个 install（include/lib/bin/etc 全带回来），本地整理时只取 include+lib，避免再猜路径
+          path: install/**
