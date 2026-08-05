@@ -48,6 +48,9 @@ jobs:
         with:
           cmake-version: '3.30.x'
 
+      # OpenCV 4.5.5 的 cmake_minimum_required 为 3.5.1 → CMP0091 策略为 OLD，
+      # CMAKE_MSVC_RUNTIME_LIBRARY 会被 CMake 忽略（实测产物仍为 /MT）。
+      # 必须直接通过编译器标志加 /MD（不受策略影响），产物才是动态 CRT。
       - name: Configure
         shell: cmd
         run: |
@@ -55,7 +58,7 @@ jobs:
           cmake -S opencv -B build ^
             -G "Visual Studio 16 2019" -A x64 ^
             -DCMAKE_CONFIGURATION_TYPES=Release ^
-            -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" ^
+            -DCMAKE_CXX_FLAGS="/MD" -DCMAKE_C_FLAGS="/MD" ^
             -DBUILD_SHARED_LIBS=OFF ^
             -DBUILD_opencv_world=ON ^
             -DOPENCV_EXTRA_MODULES_PATH=opencv_contrib/modules ^
