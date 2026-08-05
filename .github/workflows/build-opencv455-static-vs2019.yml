@@ -55,6 +55,7 @@ jobs:
           cmake -S opencv -B build ^
             -G "Visual Studio 16 2019" -A x64 ^
             -DCMAKE_CONFIGURATION_TYPES=Release ^
+            -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" ^
             -DBUILD_SHARED_LIBS=OFF ^
             -DBUILD_opencv_world=ON ^
             -DOPENCV_EXTRA_MODULES_PATH=opencv_contrib/modules ^
