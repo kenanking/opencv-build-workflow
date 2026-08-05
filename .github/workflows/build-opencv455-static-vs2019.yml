@@ -48,9 +48,11 @@ jobs:
         with:
           cmake-version: '3.30.x'
 
-      # OpenCV 4.5.5 的 cmake_minimum_required 为 3.5.1 → CMP0091 策略为 OLD，
-      # CMAKE_MSVC_RUNTIME_LIBRARY 会被 CMake 忽略（实测产物仍为 /MT）。
-      # 必须直接通过编译器标志加 /MD（不受策略影响），产物才是动态 CRT。
+      # 历次产物均为 /MT 的根因：OpenCV 4.5.5 的 OpenCVCRTLinkage.cmake 会在
+      # 静态构建时强制 CRT——BUILD_WITH_STATIC_CRT 默认为 ON（顶层 CMakeLists
+      # 第 472 行），把 /MD 全部替换成 /MT（CMAKE_MSVC_RUNTIME_LIBRARY 和
+      # CMAKE_CXX_FLAGS 里的 /MD 都会被它覆盖）。
+      # 设 OFF 后 OpenCV 反向执行 /MT→/MD，配合显式 /MD 标志，保证动态 CRT。
       - name: Configure
         shell: cmd
         run: |
@@ -58,6 +60,7 @@ jobs:
           cmake -S opencv -B build ^
             -G "Visual Studio 16 2019" -A x64 ^
             -DCMAKE_CONFIGURATION_TYPES=Release ^
+            -DBUILD_WITH_STATIC_CRT=OFF ^
             -DCMAKE_CXX_FLAGS="/MD" -DCMAKE_C_FLAGS="/MD" ^
             -DBUILD_SHARED_LIBS=OFF ^
             -DBUILD_opencv_world=ON ^
